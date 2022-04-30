@@ -1,6 +1,6 @@
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
-document.body.appendChild(canvas);
+document.querySelector("#contain").appendChild(canvas);
 F.createListeners();
 
 var cam = { x: 0, y: 0, z: 1 },
@@ -10,30 +10,54 @@ var colors = [
   "red",
   "blue",
   "magenta",
-  "yellow",
   "blueviolet",
   "crimson",
   "darkgreen",
   "darkblue",
   "darkred",
+  "coral",
+  "greenyellow",
+  "LightSalmon",
+  "hotpink",
+  "#222",
 ];
 
 function reset() {
   entityTemplate = [
-    [30, 10, 10, 10],
-    [40, 200, 30, 5],
-    [50, 400, 20, 10, ["static", "bouncy"]],
+    [30, 10, 40, 40],
+    [40, 200, 120, 20],
+    [50, 400, 80, 40, ["static", "bouncy"]],
 
-    [250, -100, 20, 10],
-    [290, 10, 30, 5, ["bouncy"]],
-    [220, 200, 10, 10],
-    [250, 500, 20, 10, ["static", "bouncy"]],
-    [400, -5000, 10, 10],
+    [250, -100, 80, 20],
+    [290, 10, 120, 20, ["bouncy"]],
+    [220, 200, 40, 40],
+    [250, 500, 80, 40, ["static", "bouncy"]],
+    [400, -5000, 40, 40],
+    [420, -5900, 40, 40],
+
+    [510, 00, 20, 20, ["bouncy"], { vy: 200 }],
+    [510, 70, 20, 20, ["bouncy"]],
+    [500, 450, 40, 120, ["static", "bouncy"]],
+
+    ...(F.keys.Shift
+      ? [
+          [10, 10, 120, 10, [], { vx: 200 }],
+          [600, 50, 5, 5, ["bouncy"], { vx: -100, vy: -50 }],
+          [100, 50, 5, 5, ["bouncy"], { vx: 100, vy: -50 }],
+          [300, 500, 5, 5, ["bouncy"], { vy: -1000 }],
+          [100, 250, 5, 5, ["bouncy"], { vy: -1000 }],
+          [100, 250, 5, 5, ["bouncy"], { vy: -1000 }],
+          [100, 250, 5, 5, ["bouncy"], { vy: -1000 }],
+          [100, 250, 5, 5, ["bouncy"], { vy: -1000 }],
+        ]
+      : []),
   ];
   entities = [];
-  const entityScale = 4;
-  const offsetX = 100;
   for (var i in entityTemplate) {
+    if (!entityTemplate[i]) {
+      continue;
+    }
+
     var entity = {
       x: entityTemplate[i][0],
       y: entityTemplate[i][1],
@@ -41,10 +65,8 @@ function reset() {
       h: entityTemplate[i][3],
       vx: 0,
       vy: 0,
+      ...(entityTemplate[i][5] || {}),
     };
-    entity.x += offsetX;
-    entity.w *= entityScale;
-    entity.h *= entityScale;
 
     if (entityTemplate[i][4]) {
       for (var j in entityTemplate[i][4]) {
@@ -62,10 +84,9 @@ function render() {
 
   const scale = Math.min(canvas.width, canvas.height);
 
-  ctx.fillStyle = "#FFF";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "#DDD";
+  ctx.strokeStyle = "#181818";
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
@@ -109,8 +130,8 @@ function render() {
     }
 
     if (entity.bouncy) {
-      ctx.fillStyle = "lime";
-      var radius = Math.min(entity.w, entity.h, 20) * 0.3;
+      ctx.fillStyle = "white";
+      var radius = Math.min(entity.w, entity.h, 10) * 0.3;
       ctx.beginPath();
       ctx.ellipse(
         entity.x + entity.w / 2,
@@ -157,7 +178,7 @@ function update(mod) {
     cam = { x: 0, y: 0, z: 1 };
   }
 
-  if (F.keys.r) {
+  if (F.keys.r || F.keys.R) {
     reset();
   }
 
@@ -175,12 +196,11 @@ function update(mod) {
     }
 
     entity.vy += vy_increase * mod;
-    if (entity.vy > vy_max) {
-      entity.vy = vy_max;
-    }
+    entity.vy = F.border(entity.vy, -vy_max, vy_max);
   }
 
-  const bounceLoss = 200;
+  const bounceLoss = 0.6;
+  const bounceMin = 100;
   for (var i in entities) {
     var entity = entities[i];
     if (entity.static) {
@@ -198,6 +218,7 @@ function update(mod) {
           {
             ...entity,
             y: entity.y + entity.vy * mod,
+            x: entity.x + entity.vx * mod,
           },
           other,
         )
@@ -208,19 +229,21 @@ function update(mod) {
           entity.y = other.y + other.h;
         }
 
-        if (!other.bouncy) {
+        if (!(entity.bouncy || other.bouncy)) {
           entity.vy = 0;
           continue Other;
         }
 
-        if (Math.abs(entity.vy) < bounceLoss) {
+        if (Math.abs(entity.vy) < bounceMin) {
           entity.vy = 0;
-          continue Other;
+        } else {
+          entity.vy *= -bounceLoss;
+          entity.vy += other.vy || 0;
         }
-        entity.vy = bounceLoss - entity.vy;
       }
     }
 
+    entity.x += entity.vx * mod;
     entity.y += entity.vy * mod;
   }
 }
